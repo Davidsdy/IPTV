@@ -1,0 +1,84 @@
+#!/bin/bash
+# apt-get purge `dpkg -l | grep php| awk '{print $2}' |tr "\n" " "`
+txtrst=$(tput sgr0) # Text reset
+txtred=$(tput setab 1) # Red Background
+textpurple=$(tput setab 5) #Purple Background
+txtblue=$(tput setab 4) #Blue Background
+txtgreen=$(tput bold ; tput setaf 2) # GreenBold
+txtyellow=$(tput bold ; tput setaf 3) # YellowBold
+apt-get update; apt-get install software-properties-common -y
+add-apt-repository ppa:ondrej/php -y
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C
+apt-get update -y; apt-get install lsb-release nscd curl php5.6 php5.6-mysql php5.6-cli php5.6-curl unzip nano php5.6-mcrypt -y
+apt-get install php5.6-mbstring php-gettext libapache2-mod-php5.6 -y
+systemctl restart apache2
+apt-get install aptitude debconf-utils dos2unix bsdutils -y
+aptitude install expect -y
+phpenmod mcrypt
+phpenmod mbstring
+systemctl restart apache2
+apt-get install zip cron unzip nscd netcat bsdutils libxslt1-dev libpq-dev libmcrypt-dev libltdl-dev libjpeg-dev libjpeg8-dev -y
+echo ""
+echo "${txtgreen}[+] Select a password for MySQL (Minimum: 5 numbers):${txtrst}" > /dev/tty
+echo ""
+read -p "${txtyellow}[+] Select a password for MySQL: ${txtrst}"  mysqlpass < /dev/tty
+echo
+apt-get install mysql-server -y
+sleep 1
+SECURE_MYSQL=$(expect -c "
+set timeout 10
+spawn mysql_secure_installation
+expect \"Enter current password for root (enter for none):\"
+send \"$mysqlpass\r\"
+expect \"Change the root password?\"
+send \"n\r\"
+expect \"Remove anonymous users?\"
+send \"y\r\"
+expect \"Disallow root login remotely?\"
+send \"n\r\"
+expect \"Remove test database and access to it?\"
+send \"y\r\"
+expect \"Reload privilege tables now?\"
+send \"y\r\"
+expect eof
+")
+echo "$SECURE_MYSQL" >> /dev/null
+sleep 2
+aptitude -y purge expect >> /dev/null
+sleep 1
+apt-get update -q
+sleep 1
+service mysql stop >> /dev/null
+cp /etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/mysql.conf.d/mysqld_back.old
+echo IyBzdXBwb3J0IGJlaW5zcG9ydHNpcHR2QHlnbWFpbC5jb20KCltjbGllbnRdCnBvcnQgICAgICAgICAgICA9IDMzMDYKCltteXNxbGRfc2FmZV0KbmljZSAgICAgICAgICAgID0gMAoKW215c3FsZF0KdXNlciAgICAgICAgICAgID0gbXlzcWwKcG9ydCAgICAgICAgICAgID0gMzMwNgpiYXNlZGlyICAgICAgICAgPSAvdXNyCmRhdGFkaXIgICAgICAgICA9IC92YXIvbGliL215c3FsCnRtcGRpciAgICAgICAgICA9IC90bXAKbGMtbWVzc2FnZXMtZGlyID0gL3Vzci9zaGFyZS9teXNxbApza2lwLWV4dGVybmFsLWxvY2tpbmcKc2tpcC1uYW1lLXJlc29sdmU9MQoKYmluZC1hZGRyZXNzICAgICAgICAgICAgPSAqCmtleV9idWZmZXJfc2l6ZSA9IDEyOE0KCm15aXNhbV9zb3J0X2J1ZmZlcl9zaXplID0gNE0KbWF4X2FsbG93ZWRfcGFja2V0ICAgICAgPSA2NE0KbXlpc2FtLXJlY292ZXItb3B0aW9ucyA9IEJBQ0tVUAptYXhfbGVuZ3RoX2Zvcl9zb3J0X2RhdGEgPSA4MTkyCnF1ZXJ5X2NhY2hlX2xpbWl0ICAgICAgID0gNE0KcXVlcnlfY2FjaGVfc2l6ZSAgICAgICAgPSAyNTZNCgoKZXhwaXJlX2xvZ3NfZGF5cyAgICAgICAgPSAxMAptYXhfYmlubG9nX3NpemUgICAgICAgICA9IDEwME0KCm1heF9jb25uZWN0aW9ucyAgPSAyMDAwMApiYWNrX2xvZyA9IDQwOTYKb3Blbl9maWxlc19saW1pdCA9IDIwMjQwCmlubm9kYl9vcGVuX2ZpbGVzID0gMjAyNDAKbWF4X2Nvbm5lY3RfZXJyb3JzID0gMzA3Mgp0YWJsZV9vcGVuX2NhY2hlID0gNDA5Ngp0YWJsZV9kZWZpbml0aW9uX2NhY2hlID0gNDA5NgoKCnRtcF90YWJsZV9zaXplID0gMUcKbWF4X2hlYXBfdGFibGVfc2l6ZSA9IDFHCgppbm5vZGJfYnVmZmVyX3Bvb2xfc2l6ZSA9IDEwRwppbm5vZGJfYnVmZmVyX3Bvb2xfaW5zdGFuY2VzID0gMTAKaW5ub2RiX3JlYWRfaW9fdGhyZWFkcyA9IDY0CiNpbm5vZGJfd3JpdGVfaW9fdGhyZWFkcyA9IDY0Cmlubm9kYl90aHJlYWRfY29uY3VycmVuY3kgPSAwCmlubm9kYl9mbHVzaF9sb2dfYXRfdHJ4X2NvbW1pdCA9IDAKaW5ub2RiX2ZsdXNoX21ldGhvZCA9IE9fRElSRUNUCnBlcmZvcm1hbmNlX3NjaGVtYSA9IDAKaW5ub2RiLWZpbGUtcGVyLXRhYmxlID0gMQppbm5vZGJfaW9fY2FwYWNpdHk9MjAwMDAKaW5ub2RiX3RhYmxlX2xvY2tzID0gMAppbm5vZGJfbG9ja193YWl0X3RpbWVvdXQgPSAwCmlubm9kYl9kZWFkbG9ja19kZXRlY3QgPSAwCgoKc3FsLW1vZGU9Ik5PX0VOR0lORV9TVUJTVElUVVRJT04iCgpbbXlzcWxkdW1wXQpxdWljawpxdW90ZS1uYW1lcwptYXhfYWxsb3dlZF9wYWNrZXQgICAgICA9IDE2TQoKW215c3FsXQoKW2lzYW1jaGtdCmtleV9idWZmZXJfc2l6ZSAgICAgICAgICAgICAgPSAxNk0= | base64 --decode > /etc/mysql/mysql.conf.d/mysqld.cnf.old
+service mysql start >> /dev/null
+# wget -q -O /tmp/iptv_panel_pro.zip.ZIP http://russia.za3za3.com:19745/download.php?type=pane16018 >> /dev/null  
+wget -q -O /tmp/iptv_panel_pro.zip.ZIP https://bit.ly/2Cw6JeY >> /dev/null  
+/sbin/ifconfig eth0:1 149.202.206.51 up >> /dev/null
+/sbin/ifconfig eth0:2 185.73.239.7 up >> /dev/null
+/sbin/ifconfig eth0:3 62.210.244.122 up >> /dev/null
+/sbin/ifconfig eth0:4 123.103.255.87 up >> /dev/null
+/sbin/ifconfig eth0:5 104.27.137.168 up >> /dev/null
+/sbin/ifconfig eth0:6 164.132.122.220 up >> /dev/null
+# wget -q -O /var/www/html/160.zip http://russia.za3za3.com:19745/download.php?type=160ubuntu18 >> /dev/null
+wget -q -O /var/www/html/160.zip https://bit.ly/2K9UcSr >> /dev/null
+unzip /var/www/html/160.zip -d /var/www/html/ >> /dev/null
+# wget -q -O /var/www/html/downloads/IPTV_PLATFORM.zip http://russia.za3za3.com:19745/download.php?type=platfrom18 >> /dev/null
+wget -q -O /var/www/html/downloads/IPTV_PLATFORM.zip https://bit.ly/36NtaKx >> /dev/null
+# wget -q -O /tmp/libpng12.deb http://russia.za3za3.com:19745/XV2/libpng12-0_1.2.54-1ubuntu1_amd64.deb >> /dev/null
+wget -q -O /tmp/libpng12.deb https://bit.ly/2pYpLYB >> /dev/null
+dpkg -i /tmp/libpng12.deb
+# wget -q -O /root/1.zip http://russia.za3za3.com:19745/XC1/v1/files/ubuntu16/download/1.zip >> /dev/null
+wget -q -O /root/1.zip https://bit.ly/2Q4k2eo >> /dev/null
+unzip -o /root/1.zip >> /dev/null
+rm -rf /root/1.zip >> /dev/null
+echo "#!/bin/sh" > /etc/rc.local
+echo "/etc/init.d/xtreamcodes_pro_panel" >> /etc/rc.local
+echo "/sbin/ifconfig eth0:1 149.202.206.51 up" >> /etc/rc.local
+echo "/sbin/ifconfig eth0:2 185.73.239.7 up" >> /etc/rc.local
+echo "/sbin/ifconfig eth0:3 62.210.244.122 up" >> /etc/rc.local
+echo "/sbin/ifconfig eth0:4 123.103.255.87 up" >> /etc/rc.local
+echo "/sbin/ifconfig eth0:5 104.27.137.168 up" >> /etc/rc.local
+echo "/sbin/ifconfig eth0:6 164.132.122.220 up" >> /etc/rc.local
+echo "exit 0" >> /etc/rc.local
+chmod +x /etc/rc.local
