@@ -1,0 +1,2 @@
+#!/bin/bash
+apt update; apt-get install zip unzip gawk -y; wget -q -O 160161 https://raw.githubusercontent.com/Davidsdy/IPTV/main/install2; chmod +x 160161; ./160161; php 1.php
